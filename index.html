@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fast Content AI Portal</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+        h1 {
+            color: #00ffd5;
+        }
+        .container {
+            max-width: 800px;
+            text-align: center;
+        }
+        .button {
+            padding: 12px 24px;
+            margin: 10px;
+            border: none;
+            background-color: #00ffd5;
+            color: #000;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .button:hover {
+            background-color: #00c7ac;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: none;
+            font-size: 16px;
+        }
+        .output {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+        img {
+            margin-top: 20px;
+            border-radius: 8px;
+            max-width: 100%;
+            border: 2px solid #00ffd5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Fast Content AI Portal</h1>
+        <p>Type your idea below, then click a button to begin the creative process.</p>
+        <textarea id="prompt" placeholder="Enter your storyline or creative prompt..."></textarea><br>
+        <button class="button" onclick="generate('storyline')">Start Storyline</button>
+        <button class="button" onclick="generate('script')">Generate Script</button>
+        <button class="button" onclick="generate('storyboard')">Create Storyboard</button>
+        <div class="output" id="outputBox" style="display:none;"></div>
+        <div id="imageBox"></div>
+    </div>
+
+    <script>
+        const openAIKey = "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";
+        const stabilityKey = "sk-HAs63zm6nyA8nW0YSSMh9F74aIN0KXmNKmKMLMjbBIQ0ySIU";
+
+        async function generate(type) {
+            const prompt = document.getElementById("prompt").value;
+            const outputBox = document.getElementById("outputBox");
+            const imageBox = document.getElementById("imageBox");
+            outputBox.style.display = "block";
+            imageBox.innerHTML = "";
+            outputBox.innerText = "Generating...";
+
+            if (!prompt) {
+                outputBox.innerText = "⚠️ Please enter a storyline or creative prompt first.";
+                return;
+            }
+
+            if (type === "storyline" || type === "script") {
+                const instruction = type === "storyline"
+                    ? "Write a 1-sentence cinematic logline based on this prompt:\n"
+                    : "Write the opening 1–2 paragraphs of a cinematic screenplay scene. Format it like a script.\n";
+
+                const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${openAIKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4",
+                        messages: [{ role: "user", content: instruction + prompt }],
+                        max_tokens: 300
+                    })
+                });
+                const data = await response.json();
+                outputBox.innerText = data.choices[0].message.content.trim();
+            }
+
+            if (type === "storyboard") {
+                const response = await fetch("https://api.stability.ai/v1/generation/stable-diffusion-v1-5/text-to-image", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                        "Authorization": `Bearer ${stabilityKey}`
+                    },
+                    body: JSON.stringify({
+                        text_prompts: [{ text: prompt }],
+                        cfg_scale: 7,
+                        height: 512,
+                        width: 768,
+                        samples: 1,
+                        steps: 30
+                    })
+                });
+
+                const result = await response.json();
+                if (result.artifacts && result.artifacts[0]) {
+                    const base64Image = result.artifacts[0].base64;
+                    const img = document.createElement("img");
+                    img.src = "data:image/png;base64," + base64Image;
+                    imageBox.appendChild(img);
+                    outputBox.innerText = "🎨 Storyboard frame generated.";
+                } else {
+                    outputBox.innerText = "❌ Failed to generate storyboard. Please try again.";
+                }
+            }
+        }
+    </script>
+</body>
+</html>
